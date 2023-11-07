@@ -22,10 +22,7 @@ def compute_features(source_audio_path,
                      text, 
                      speaker_name, 
                      out_melspecs_path, 
-                     g2p,
-                     itr,
-                     count_files):
-    print(f"Processing file {itr}/{count_files}")
+                     g2p):
     try:
         text = normalize_text(text)
         out_mel_path = os.path.join(out_melspecs_path, file_name + ".npy")
@@ -44,50 +41,37 @@ def compute_features(source_audio_path,
         
         return None
 
-def preprocess(dataset_path, output_path, target_speakers, config, num_workers):
+def preprocess(dataset, output_path, target_speakers, config, num_workers):
     r"""Preprocesses audio files in the dataset."""
-    with open(os.path.join(dataset_path, "validated.tsv"), "r") as f:
-        all_lines = f.readlines()
-
-    all_lines = [l.split('\t') for l in all_lines[1:]]
-    all_lines = [(l[0], l[1], l[2]) for l in all_lines]
     
     # Load G2P module
     g2p = Grapheme2Phoneme()
 
-    # Keep only the traget speakers
-    all_lines_final = {}
-    for speaker in target_speakers:
-        all_lines_final[speaker] = [(l[1], l[2]) for l in all_lines if l[0]==speaker]
+    dataset = dataset.filter(lambda example: example['client_id'] in target_speakers)
+
+    speaker_name_map = {v:f"speaker_fa_{itr_spk}" for itr_spk, v in target_speakers}
 
     executor = ProcessPoolExecutor(max_workers=num_workers)
     
     # Create metafile and copy files
     metafile = []
-    for itr_spk, speaker in enumerate(all_lines_final.keys()):
-        speaker_name = f"speaker_fa_{itr_spk}"
-        
-        # Create final directory
-        out_melspecs_path = os.path.join(output_path, "melspecs")
-        os.makedirs(out_melspecs_path, exist_ok=True)
-        print(f"Preprocessing files for speaker {itr_spk}/{len(all_lines_final.keys())}")
-        lines = all_lines_final[speaker]
-        count_files = len(lines)
-
-        for itr, line in enumerate(lines[:20]):
-            file_name, text = line
-            file_name_ = speaker_name + "_" + file_name.split(".")[0]
-            source_audio_path = os.path.join(dataset_path, "clips", file_name)
-            meta_line = executor.submit(partial(compute_features, 
-                                                source_audio_path, 
-                                                file_name_, 
-                                                text, 
-                                                speaker_name, 
-                                                out_melspecs_path, 
-                                                g2p,
-                                                itr,
-                                                count_files))
-            metafile.append(meta_line)
+    # Create final directory
+    out_melspecs_path = os.path.join(output_path, "melspecs")
+    os.makedirs(out_melspecs_path, exist_ok=True)
+    for sample in dataset:
+        # * change dataset meta file to new HF datasets.Dataset format
+        speaker_name = speaker_name_map[sample['client_id']]
+        file_name, text = os.path.basename(sample['path']), sample['sentence']
+        file_name_ =  + "_" + file_name.split(".")[0]
+        source_audio_path = sample['path']
+        meta_line = executor.submit(partial(compute_features, 
+                                            source_audio_path, 
+                                            file_name_, 
+                                            text, 
+                                            speaker_name, 
+                                            out_melspecs_path, 
+                                            g2p))
+        metafile.append(meta_line)
 
     metafile = [metaline.result() for metaline in metafile if metaline is not None]
     print(metafile)
