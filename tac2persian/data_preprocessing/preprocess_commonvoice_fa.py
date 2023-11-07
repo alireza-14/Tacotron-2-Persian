@@ -6,6 +6,8 @@ import librosa
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
+from datasets import load_from_disk
+
 from tac2persian.utils.generic import load_config
 from tac2persian.utils.g2p.g2p import Grapheme2Phoneme
 from tac2persian.utils.audio import log_melspectrogram, trim_silence
@@ -41,9 +43,11 @@ def compute_features(source_audio_path,
         
         return None
 
-def preprocess(dataset, output_path, target_speakers, config, num_workers):
+def preprocess(dataset_path, output_path, target_speakers, config, num_workers):
     r"""Preprocesses audio files in the dataset."""
     
+    dataset = load_from_disk(dataset_path)
+
     # Load G2P module
     g2p = Grapheme2Phoneme()
 
