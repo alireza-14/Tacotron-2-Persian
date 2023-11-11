@@ -54,7 +54,7 @@ def preprocess(dataset_path, output_path, target_speakers, config, num_workers, 
 
     dataset = dataset.filter(lambda example: example['client_id'] in target_speakers)
 
-    speaker_name_map = {v:f"speaker_fa_{itr_spk}" for itr_spk, v in target_speakers}
+    speaker_name_map = {v:f"speaker_fa_{itr_spk}" for itr_spk, v in enumerate(target_speakers)}
 
     executor = ProcessPoolExecutor(max_workers=num_workers)
     
