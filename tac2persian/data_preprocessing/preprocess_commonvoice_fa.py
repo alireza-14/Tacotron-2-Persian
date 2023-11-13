@@ -6,7 +6,7 @@ import librosa
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
-from datasets import load_from_disk
+from datasets import load_from_disk, load_dataset
 
 from tac2persian.utils.generic import load_config
 from tac2persian.utils.g2p.g2p import Grapheme2Phoneme
@@ -43,11 +43,14 @@ def compute_features(source_audio_path,
         
         return None
 
-def preprocess(dataset_path, output_path, target_speakers, config, num_workers):
+def preprocess(dataset_path, output_path, target_speakers, config, num_workers, split):
     r"""Preprocesses audio files in the dataset."""
     
-    dataset = load_from_disk(dataset_path)
-
+    try:
+        dataset = load_from_disk(dataset_path)[split]
+    except:
+        dataset = load_dataset("mozilla-foundation/common_voice_13_0", "fa")
+    
     # Load G2P module
     g2p = Grapheme2Phoneme()
 
@@ -93,7 +96,9 @@ if __name__ == "__main__":
     parser.add_argument("--config_path", type=str, required=True)
     parser.add_argument("--num_workers", type=int, default=5)
     args = parser.parse_args()
-    target_speakers = ["0d358649ded3baf7f476eeb2ba44fc2cfc195824b0294fcb4a2059c4e6a2e6ab1aede4dd71f5df11fb4550d6db6ee9e45244180d9692ea897afb86cc0471caa0"]
+    target_speakers = []
+    with open("static/selected_speakers.tsv", "r") as rfile:
+        target_speakers = [i.strip() for i in rfile.readlines()]
 
     config = load_config(os.path.join(args.config_path, "config.yml"))
     preprocess(args.dataset_path, args.output_path, target_speakers, config, args.num_workers)
