@@ -49,7 +49,7 @@ def preprocess(dataset_path, output_path, target_speakers, config, num_workers, 
     try:
         dataset = load_from_disk(dataset_path)[split]
     except:
-        dataset = load_dataset("mozilla-foundation/common_voice_13_0", "fa")
+        dataset = load_dataset("mozilla-foundation/common_voice_13_0", "fa")[split]
     
     # Load G2P module
     g2p = Grapheme2Phoneme()
