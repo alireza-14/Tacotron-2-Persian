@@ -41,6 +41,10 @@ batch_size: 5
 chekpoint_save_steps: 1000
 use_cuda: True
 
+# Weight Initialization Parameters
+use_checkpoint: True
+checkpoint_path: "./outputs/checkpoints/checkpoint_{Step Divided by 1000}K.pt"
+
 # Loss
 use_weighted_masking: True
 bce_pos_weight: 1.0

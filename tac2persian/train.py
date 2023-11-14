@@ -24,6 +24,11 @@ class TacotronTrainer():
         self.model = model.to(self.device)
         self.writer = SummaryWriter(log_dir=self.path_manager.logs_path)
         self._init_criterion_optimizer()
+        # TODO: Add load specific checkpoint
+        if self.config["use_checkpoint"]:
+            self.current_epoch = self._load_checkpoint()
+        else:
+            self.current_epoch = 0
         self._init_dataloaders()
 
     def _init_criterion_optimizer(self):
@@ -34,6 +39,14 @@ class TacotronTrainer():
                                                   pos_weight=torch.tensor(self.config["bce_pos_weight"]))
         # Optimizer
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.config["lr"])
+
+
+    def _load_checkpoint(self):
+        # TODO: add checkpoint loading
+        checkpoint = torch.load(self.config["checkpoint_path"])
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        return checkpoint['epoch']
         
     
     def _init_dataloaders(self):
@@ -88,7 +101,7 @@ class TacotronTrainer():
         return loss, l1_loss, mse_loss, bce_loss
 
     def train(self):
-        for epoch in range(self.config["epochs"]):
+        for epoch in range(self.current_epoch, self.config["epochs"]):
             self._train_epoch(epoch)
             self._eval_epoch(epoch)
             
@@ -140,7 +153,7 @@ class TacotronTrainer():
             
             # Save checkpoints
             if step % self.config["chekpoint_save_steps"] == 0:
-                self._save_checkpoint()
+                self._save_checkpoint(epoch, avg_loss)
 
             # Save mel-spec and attention plots for the generated example
             if self.example_id in item_id:
@@ -195,10 +208,15 @@ class TacotronTrainer():
             self.writer.add_scalar("eval/loss", l1_loss.item(), epoch)
         self.model.train()
 
-    def _save_checkpoint(self):
+    def _save_checkpoint(self, epoch, avg_loss):
         k = self.model.get_step() // 1000
         checkpoint_path = os.path.join(self.path_manager.checkpoints_path, f"checkpoint_{k}K.pt")
-        torch.save(self.model.state_dict(), checkpoint_path)
+        torch.save({
+            "epoch": epoch,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "loss": avg_loss
+        }, checkpoint_path)
 
 
 def main(args):
